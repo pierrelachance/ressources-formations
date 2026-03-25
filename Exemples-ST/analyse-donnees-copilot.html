@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Analyse de données : accélération vs. temps avec régression polynomiale">
+    <meta name="color-scheme" content="light dark">
+
+    <!-- CSP autonome : aucune ressource externe JS/CSS -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'none';">
+<!-- Favicon RÉCIT -->
+<link rel="shortcut icon" href="https://recitmst.qc.ca/favicon.ico" />
+    <title>Analyse de données : accélération vs. temps</title>
+
+    <style>
+        /* ============================================
+           VARIABLES CSS — Style RÉCIT MST
+           ============================================ */
+        :root {
+            --accent-primary:   #0069bf;
+            --accent-secondary: #faa22a;
+            --text-main:        #1e293b;
+            --text-muted:       #475569;
+            --text-light:       #64748b;
+            --bg-page:          #f8fafc;
+            --bg-card:          #ffffff;
+            --bg-surface:       #f1f5f9;
+            --border-color:     #cbd5e1;
+            --border-light:     #e2e8f0;
+            --color-success:    #16a34a;
+            --color-error:      #dc2626;
+            --color-warning:    #d97706;
+            --color-heading:    #384f5c;
+            --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --spacing-sm:  0.5rem;
+            --spacing-md:  1rem;
+            --spacing-lg:  1.5rem;
+            --spacing-xl:  2rem;
+            --container-width: 900px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        /* ============================================
+           RESET ET BASE
+           ============================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            padding: var(--spacing-md);
+        }
+
+        /* ============================================
+           LAYOUT
+           ============================================ */
+        .container { max-width: var(--container-width); margin: 0 auto; width: 100%; }
+
+        .content-wrapper {
+            background-color: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+
+        /* ============================================
+           TYPOGRAPHIE
+           ============================================ */
+        h1, h2, h3, h4 {
+            color: var(--color-heading);
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: var(--spacing-sm);
+        }
+        h1 { font-size: 1.75rem; }
+        h2 {
+            font-size: 1.375rem;
+            margin-top: var(--spacing-lg);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--border-light);
+        }
+        h3 { font-size: 1.125rem; color: var(--text-muted); }
+
+        p { margin-bottom: var(--spacing-md); }
+
+        a { color: var(--accent-primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* ============================================
+           HEADER — Style RÉCIT MST (bande bleue)
+           ============================================ */
+        .site-header {
+            background-color: var(--accent-primary);
+            color: white;
+            padding: var(--spacing-lg) var(--spacing-xl);
+        }
+        .site-header h1 { color: white; margin-bottom: var(--spacing-sm); }
+        .site-header p  { color: rgba(255,255,255,0.85); margin-bottom: 0; font-size: 1.05rem; }
+
+        /* ============================================
+           MAIN CONTENT
+           ============================================ */
+        main { padding: var(--spacing-lg) var(--spacing-xl); }
+
+        section { margin-bottom: var(--spacing-xl); }
+        section:last-child { margin-bottom: 0; }
+
+        /* ============================================
+           TABLEAUX
+           ============================================ */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        thead { background-color: var(--bg-surface); }
+        th {
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border-color);
+        }
+        td {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+        tbody tr:nth-child(even) { background-color: var(--bg-surface); }
+        tbody tr:last-child td   { border-bottom: none; }
+
+        /* ============================================
+           GRAPHIQUES SVG
+           ============================================ */
+        .chart-container {
+            background-color: var(--bg-surface);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+        .chart-svg {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* ============================================
+           ALERTES / INFO BOXES
+           ============================================ */
+        .alert {
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            border-left: 4px solid;
+        }
+        .alert-info {
+            background-color: #dbeafe;
+            border-left-color: var(--accent-primary);
+            color: #1e40af;
+        }
+        .alert p            { margin-bottom: 0.5rem; }
+        .alert p:last-child { margin-bottom: 0; }
+        .alert-title  { font-weight: 600; color: #1e3a5f; }
+        .alert-quote  { font-style: italic; color: var(--text-muted); }
+
+        /* ============================================
+           ÉQUATIONS (HTML/CSS natif — pas de KaTeX)
+           ============================================ */
+        .equation-block {
+            overflow-x: auto;
+            padding: 0.75em 1em;
+            margin: var(--spacing-md) 0;
+            background-color: var(--bg-surface);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+        .math {
+            font-family: "Georgia", "Times New Roman", serif;
+            font-size: 1.1rem;
+            line-height: 2;
+            color: var(--text-main);
+        }
+        .math sup { font-size: 0.7em; vertical-align: super; }
+        .math sub { font-size: 0.7em; vertical-align: sub; }
+        .math-var { font-style: italic; }
+
+        .equation-note {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-top: var(--spacing-sm);
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .site-footer {
+            text-align: center;
+            padding: var(--spacing-lg);
+            background-color: var(--bg-surface);
+            border-top: 1px solid var(--border-light);
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+        .site-footer a { text-decoration: underline; }
+
+        /* ============================================
+           ACCESSIBILITÉ
+           ============================================ */
+        :focus-visible { outline: 3px solid var(--accent-secondary); outline-offset: 2px; }
+
+        .visually-hidden {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        .skip-link {
+            position: absolute; top: -40px; left: 0;
+            background: var(--accent-primary); color: white;
+            padding: 8px 16px; z-index: 100;
+            transition: top 0.3s;
+        }
+        .skip-link:focus { top: 0; }
+
+        /* ============================================
+           LÉGENDE GRAPHIQUE
+           ============================================ */
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+        .legend-dot  { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .legend-line {
+            width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 640px) {
+            body { padding: var(--spacing-sm); }
+            h1   { font-size: 1.5rem; }
+            h2   { font-size: 1.25rem; }
+            .site-header, main { padding: var(--spacing-md); }
+            th, td { padding: 0.5rem 0.75rem; font-size: 0.9rem; }
+        }
+
+        /* ============================================
+           PRÉFÉRENCE DE MOUVEMENT RÉDUIT
+           ============================================ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Lien d'évitement pour accessibilité -->
+    <a href="#main-content" class="skip-link visually-hidden">Aller au contenu principal</a>
+
+    <div class="container">
+        <div class="content-wrapper">
+
+            <header class="site-header" role="banner">
+                <h1>Analyse de données : accélération vs. temps</h1>
+                <p>Une analyse basée sur les données fournies, incluant une régression polynomiale.</p>
+            </header>
+
+            <main id="main-content" role="main" aria-live="polite">
+
+                <!-- Section 1: Données brutes -->
+                <section>
+                    <h2>Données brutes</h2>
+                    <p>Voici les données initiales représentant l'accélération en fonction du temps.</p>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Temps (s)</th>
+                                    <th scope="col">Accélération (m/s²)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>2,55</td><td>9,42</td></tr>
+                                <tr><td>2,58</td><td>9,37</td></tr>
+                                <tr><td>2,60</td><td>9,34</td></tr>
+                                <tr><td>2,63</td><td>8,99</td></tr>
+                                <tr><td>2,67</td><td>8,47</td></tr>
+                                <tr><td>2,70</td><td>9,25</td></tr>
+                                <tr><td>2,72</td><td>8,39</td></tr>
+                                <tr><td>2,74</td><td>7,56</td></tr>
+                                <tr><td>2,77</td><td>5,42</td></tr>
+                                <tr><td>2,79</td><td>5,42</td></tr>
+                                <tr><td>2,82</td><td>2,51</td></tr>
+                                <tr><td>2,84</td><td>0,35</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Section 2: Graphique initial -->
+                <section>
+                    <h2>Étape 1 : graphique des données brutes</h2>
+                    <p>Voici le graphique représentant l'accélération en fonction du temps.</p>
+                    <div class="chart-container">
+                        <svg id="initialChart" class="chart-svg" viewBox="0 0 700 380"
+                             aria-labelledby="chart1-title chart1-desc" role="img">
+                            <title id="chart1-title">Graphique des données brutes</title>
+                            <desc id="chart1-desc">Nuage de points de l'accélération (m/s²) en fonction du temps (s), de t = 2,55 s à t = 2,84 s. Les valeurs d'accélération vont de 0,35 à 9,42 m/s² et montrent une tendance décroissante.</desc>
+                        </svg>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item">
+                            <span class="legend-dot" style="background:#0069bf;" aria-hidden="true"></span>
+                            Données
+                        </span>
+                    </div>
+                </section>
+
+                <!-- Section 3: Demande d'équation -->
+                <section>
+                    <h2>Étape 2 : analyse et régression</h2>
+                    <div class="alert alert-info" role="note">
+                        <p class="alert-title">Contexte (extrait du document) :</p>
+                        <p class="alert-quote">« As-tu l'équation (régression) de la courbe, qui... »</p>
+                    </div>
+
+                    <h3>Équation de régression</h3>
+                    <p>L'équation de la régression polynomiale (degré 3) est :</p>
+                    <div class="equation-block" aria-label="Équation de régression polynomiale de degré 3">
+                        <span class="math">
+                            <span class="math-var">a</span>(<span class="math-var">t</span>) =
+                            −753,42411<span class="math-var">t</span><sup>3</sup>
+                            + 5912,21491<span class="math-var">t</span><sup>2</sup>
+                            − 15465,97575<span class="math-var">t</span>
+                            + 13496,3514
+                        </span>
+                    </div>
+                    <p class="equation-note">Note : l'équation a été extraite et nettoyée à partir du document original pour un affichage correct.</p>
+                </section>
+
+                <!-- Section 4: Graphique avec régression -->
+                <section>
+                    <h2>Étape 3 : graphique avec courbe de régression</h2>
+                    <p>Voici le graphique avec la courbe de régression ajoutée.</p>
+                    <div class="chart-container">
+                        <svg id="regressionChart" class="chart-svg" viewBox="0 0 700 380"
+                             aria-labelledby="chart2-title chart2-desc" role="img">
+                            <title id="chart2-title">Données avec régression polynomiale</title>
+                            <desc id="chart2-desc">Nuage de points de l'accélération en fonction du temps avec la courbe de régression polynomiale de degré 3 superposée en orange. La courbe suit la tendance décroissante des données.</desc>
+                        </svg>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item">
+                            <span class="legend-dot" style="background:#0069bf;" aria-hidden="true"></span>
+                            Données
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-line" style="background:#faa22a;" aria-hidden="true"></span>
+                            Régression polynomiale (degré 3)
+                        </span>
+                    </div>
+                </section>
+
+                <!-- Section 5: Analyse point nul et vitesse -->
+                <section>
+                    <h2>Étape 4 : calculs finaux</h2>
+                    <div class="alert alert-info" role="note">
+                        <p class="alert-title">Contexte (extrait du document) :</p>
+                        <p class="alert-quote">« Veux-tu que je calcule le temps où l'accélération devient 0 (résolution de l'équation) ? »</p>
+                        <p class="alert-quote">« ...calculer la vitesse approximative à ce moment-là (en intégrant l'accélération) ? »</p>
+                    </div>
+
+                    <h3>Accélération nulle</h3>
+                    <p>Le temps où l'accélération devient 0 est approximativement :</p>
+                    <div class="equation-block" aria-label="Temps d'accélération nulle approximativement 2,843 secondes">
+                        <span class="math">
+                            <span class="math-var">t</span> ≈ 2,843 secondes
+                        </span>
+                    </div>
+
+                    <h3>Vitesse approximative</h3>
+                    <p>La vitesse approximative à ce moment (calculée par intégration) est :</p>
+                    <div class="equation-block" aria-label="Vitesse approximative de 2,16 mètres par seconde">
+                        <span class="math">
+                            <span class="math-var">v</span> ≈ 2,16 m/s
+                        </span>
+                    </div>
+                </section>
+
+                <!-- Section 6: Graphique final -->
+                <section>
+                    <h2>Étape 5 : graphique final (avec point nul)</h2>
+                    <p>Voici le graphique final incluant le point où l'accélération devient nulle.</p>
+                    <div class="chart-container">
+                        <svg id="finalChart" class="chart-svg" viewBox="0 0 700 380"
+                             aria-labelledby="chart3-title chart3-desc" role="img">
+                            <title id="chart3-title">Graphique final avec point d'accélération nulle</title>
+                            <desc id="chart3-desc">Nuage de points avec courbe de régression polynomiale et point rouge marquant le moment où l'accélération devient nulle, approximativement à t = 2,843 s.</desc>
+                        </svg>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item">
+                            <span class="legend-dot" style="background:#0069bf;" aria-hidden="true"></span>
+                            Données
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-line" style="background:#faa22a;" aria-hidden="true"></span>
+                            Régression polynomiale (degré 3)
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot" style="background:#dc2626; border: 2px solid white; box-shadow: 0 0 0 1px #dc2626;" aria-hidden="true"></span>
+                            Accélération nulle (t ≈ 2,843 s)
+                        </span>
+                    </div>
+                </section>
+
+            </main>
+
+            <footer class="site-footer" role="contentinfo">
+                <p>Page générée à partir de <a href="https://drive.google.com/file/d/1rd9n1pYWBarvyB99r2YSk7TTF2wW2bhI/view?usp=sharing" target="_blank" rel="noopener noreferrer">ce document</a> où Copilot est le « traiteur » de données.</p>
+                <p style="margin-top: 0.5rem;">Ingénierie RÉCIT MST (<a href="mailto:mst@recit.gouv.qc.ca">mst@recit.gouv.qc.ca</a>) | Programmation par une IAG avec <a href="https://drive.google.com/file/d/1dTVZGoRG6YVKinoENRLTWRhY4FVWxdPG/view?usp=sharing" style="text-decoration:underline;" target="_blank" rel="noopener noreferrer">ces instructions de sécurité</a>.</p>
+            </footer>
+
+        </div>
+    </div>
+
+    <!-- Annonceur pour lecteurs d'écran -->
+    <div id="sr-announcer" role="status" aria-live="polite" class="visually-hidden"></div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        /* ============================================================
+           DONNÉES ET FONCTIONS
+           ============================================================ */
+        var temps = [2.55, 2.58, 2.6, 2.63, 2.67, 2.7, 2.72, 2.74, 2.77, 2.79, 2.82, 2.84];
+        var acceleration = [9.42, 9.37, 9.34, 8.99, 8.47, 9.25, 8.39, 7.56, 5.42, 5.42, 2.51, 0.35];
+
+        function regression(t) {
+            return -753.42411 * Math.pow(t, 3)
+                 + 5912.21491 * Math.pow(t, 2)
+                 - 15465.97575 * t
+                 + 13496.3514;
+        }
+
+        var zeroTime = 2.843;
+
+        /* ============================================================
+           MOTEUR DE GRAPHIQUE SVG
+           Configuration de la zone de dessin
+           ============================================================ */
+        var W = 700, H = 380;
+        var margin = { top: 40, right: 30, bottom: 60, left: 60 };
+        var plotW = W - margin.left - margin.right;
+        var plotH = H - margin.top - margin.bottom;
+
+        var xMin = 2.54, xMax = 2.86;
+        var yMin = 0,    yMax = 10.5;
+
+        /* Conversion données → pixels */
+        function px(t) {
+            return margin.left + (t - xMin) / (xMax - xMin) * plotW;
+        }
+        function py(a) {
+            return margin.top + (1 - (a - yMin) / (yMax - yMin)) * plotH;
+        }
+
+        /* Création d'un élément SVG */
+        function svgEl(tag, attrs) {
+            var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            Object.keys(attrs).forEach(function(k) {
+                el.setAttribute(k, attrs[k]);
+            });
+            return el;
+        }
+
+        /* Texte SVG — sécurisé (textContent uniquement) */
+        function svgText(content, attrs) {
+            var el = svgEl('text', attrs);
+            el.textContent = content;
+            return el;
+        }
+
+        /* ============================================================
+           CONSTRUCTION D'UN GRAPHIQUE
+           ============================================================ */
+        function buildChart(svgEl_, showRegression, showZero) {
+            var ns = 'http://www.w3.org/2000/svg';
+            var svg = svgEl_;
+
+            /* Fond de la zone de tracé */
+            svg.appendChild(svgEl('rect', {
+                x: margin.left, y: margin.top,
+                width: plotW, height: plotH,
+                fill: '#ffffff', stroke: '#cbd5e1', 'stroke-width': 1
+            }));
+
+            /* ---- Grille horizontale ---- */
+            for (var ya = 0; ya <= 10; ya += 2) {
+                var gy = py(ya);
+                svg.appendChild(svgEl('line', {
+                    x1: margin.left, y1: gy, x2: margin.left + plotW, y2: gy,
+                    stroke: '#e2e8f0', 'stroke-width': 1
+                }));
+                svg.appendChild(svgText(ya.toString(), {
+                    x: margin.left - 8, y: gy + 4,
+                    'text-anchor': 'end', 'font-size': '11', fill: '#475569'
+                }));
+            }
+
+            /* ---- Grille verticale ---- */
+            var xTicks = [2.55, 2.60, 2.65, 2.70, 2.75, 2.80, 2.85];
+            xTicks.forEach(function(xt) {
+                var gx = px(xt);
+                svg.appendChild(svgEl('line', {
+                    x1: gx, y1: margin.top, x2: gx, y2: margin.top + plotH,
+                    stroke: '#e2e8f0', 'stroke-width': 1
+                }));
+                svg.appendChild(svgText(xt.toFixed(2), {
+                    x: gx, y: margin.top + plotH + 18,
+                    'text-anchor': 'middle', 'font-size': '11', fill: '#475569'
+                }));
+            });
+
+            /* ---- Axes ---- */
+            svg.appendChild(svgEl('line', {
+                x1: margin.left, y1: margin.top + plotH,
+                x2: margin.left + plotW, y2: margin.top + plotH,
+                stroke: '#384f5c', 'stroke-width': 1.5
+            }));
+            svg.appendChild(svgEl('line', {
+                x1: margin.left, y1: margin.top,
+                x2: margin.left, y2: margin.top + plotH,
+                stroke: '#384f5c', 'stroke-width': 1.5
+            }));
+
+            /* ---- Étiquettes des axes ---- */
+            var xLabel = svgText('Temps (s)', {
+                x: margin.left + plotW / 2,
+                y: H - 8,
+                'text-anchor': 'middle', 'font-size': '13',
+                'font-weight': 'bold', fill: '#384f5c'
+            });
+            svg.appendChild(xLabel);
+
+            var yLabel = svgText('Accélération (m/s²)', {
+                x: 0, y: 0,
+                'text-anchor': 'middle', 'font-size': '13',
+                'font-weight': 'bold', fill: '#384f5c',
+                transform: 'translate(14,' + (margin.top + plotH / 2) + ') rotate(-90)'
+            });
+            svg.appendChild(yLabel);
+
+            /* ---- Courbe de régression ---- */
+            if (showRegression) {
+                var pathData = '';
+                var step = 0.002;
+                for (var t = xMin; t <= xMax + 0.001; t += step) {
+                    var a = regression(t);
+                    var x = px(t);
+                    var y = py(Math.max(yMin, Math.min(yMax, a)));
+                    pathData += (pathData === '' ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+                }
+                svg.appendChild(svgEl('path', {
+                    d: pathData,
+                    fill: 'none',
+                    stroke: '#faa22a',
+                    'stroke-width': '2.5',
+                    'stroke-linejoin': 'round'
+                }));
+            }
+
+            /* ---- Points de données ---- */
+            for (var i = 0; i < temps.length; i++) {
+                var cx = px(temps[i]);
+                var cy = py(acceleration[i]);
+                svg.appendChild(svgEl('circle', {
+                    cx: cx, cy: cy, r: 6,
+                    fill: '#0069bf', stroke: 'white', 'stroke-width': 1.5
+                }));
+            }
+
+            /* ---- Point nul ---- */
+            if (showZero) {
+                var zx = px(zeroTime);
+                var zy = py(Math.max(yMin, regression(zeroTime)));
+                svg.appendChild(svgEl('circle', {
+                    cx: zx, cy: zy, r: 10,
+                    fill: '#dc2626', stroke: 'white', 'stroke-width': 2
+                }));
+            }
+        }
+
+        /* ============================================================
+           INITIALISATION AU CHARGEMENT
+           ============================================================ */
+        document.addEventListener('DOMContentLoaded', function() {
+            buildChart(document.getElementById('initialChart'),    false, false);
+            buildChart(document.getElementById('regressionChart'), true,  false);
+            buildChart(document.getElementById('finalChart'),      true,  true);
+        });
+
+        /* ============================================================
+           GESTIONNAIRES D'ERREURS GLOBAUX
+           ============================================================ */
+        window.addEventListener('error', function(event) {
+            console.error('Erreur globale :', event.error);
+        });
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Promesse rejetée :', event.reason);
+            event.preventDefault();
+        });
+
+    })();
+    </script>
+</body>
+</html>
