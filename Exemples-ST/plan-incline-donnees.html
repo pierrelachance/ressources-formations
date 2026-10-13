@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Simulation de physique : défi du plan incliné avec calculs d'accélération et frottement">
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;">
+<!-- Favicon RÉCIT -->
+<link rel="shortcut icon" href="https://recitmst.qc.ca/favicon.ico" />
+    <title>Physique : défi du plan incliné</title>
+    <style>
+        /* ============================================
+           VARIABLES CSS - STYLE RÉCIT MST
+           ============================================ */
+        :root {
+            /* Couleurs principales */
+            --accent-primary: #0069bf;
+            --accent-secondary: #faa22a;
+            
+            /* Texte */
+            --text-main: #1e293b;
+            --text-muted: #475569;
+            --text-light: #64748b;
+            
+            /* Fonds et bordures */
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-surface: #f1f5f9;
+            --border-color: #cbd5e1;
+            --border-light: #e2e8f0;
+            
+            /* Couleurs d'état */
+            --color-success: #16a34a;
+            --color-error: #dc2626;
+            --color-warning: #d97706;
+            
+            /* Typographie */
+            --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --color-heading: #384f5c;
+            
+            /* Espacement */
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            
+            /* Layout */
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        /* ============================================
+           RESET ET BASE
+           ============================================ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ============================================
+           LAYOUT PRINCIPAL
+           ============================================ */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        @media (min-width: 1024px) {
+            .main-container {
+                flex-direction: row;
+            }
+        }
+
+        /* ============================================
+           ZONE DE SIMULATION (fond couché de soleil)
+           ============================================ */
+        .simulation-area {
+            width: 100%;
+            height: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #4a6e91 0%, #89a7c3 30%, #f0b89a 70%, #f9c784 100%);
+        }
+
+        @media (min-width: 1024px) {
+            .simulation-area {
+                width: 66.666%;
+                height: 100%;
+            }
+        }
+
+        /* ============================================
+           ZONE DE CONTRÔLES
+           ============================================ */
+        .controls-area {
+            width: 100%;
+            height: 50%;
+            background-color: var(--bg-card);
+            padding: var(--spacing-lg);
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        @media (min-width: 1024px) {
+            .controls-area {
+                width: 33.333%;
+                height: 100%;
+            }
+        }
+
+        /* ============================================
+           TYPOGRAPHIE
+           ============================================ */
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--color-heading);
+            margin-bottom: var(--spacing-md);
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-heading);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-heading);
+        }
+
+        a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* ============================================
+           COMPOSANTS - PLAN INCLINÉ
+           ============================================ */
+        .plane-container {
+            position: absolute;
+            bottom: 60%;
+            left: 10%;
+        }
+
+        .plane {
+            height: 20px;
+            background-color: #966F33;
+            transform-origin: bottom left;
+            border-top: 4px solid #634722;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            border-radius: var(--radius-md);
+            width: 800px;
+        }
+
+        .track {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: repeating-linear-gradient(
+                90deg,
+                #4A5568,
+                #4A5568 1px,
+                transparent 1px,
+                transparent 10%
+            );
+            border-bottom: 2px solid #CBD5E0;
+        }
+
+        .bolide {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(145deg, #f87171, #dc2626);
+            border: 2px solid #991b1b;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+            transition: left 0.05s linear;
+            transform: translateX(-50%);
+            border-radius: 4px;
+        }
+
+        .handle {
+            position: absolute;
+            transform: translate(-50%, 50%);
+            width: 24px;
+            height: 24px;
+            background: #3B82F6;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: grab;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+            z-index: 20;
+        }
+
+        .handle:active {
+            cursor: grabbing;
+            background: #2563EB;
+        }
+
+        .pivot {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #4A5568;
+            border-radius: 50%;
+            border: 2px solid white;
+            bottom: 0;
+            left: 0;
+            transform: translate(-50%, 50%);
+            z-index: 10;
+        }
+
+        .angle-display {
+            position: absolute;
+            top: var(--spacing-md);
+            left: var(--spacing-md);
+            background: var(--bg-card);
+            padding: 0.75rem;
+            border-radius: var(--radius-md);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-weight: 700;
+            font-size: 1.125rem;
+        }
+
+        .distance-label {
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            margin-bottom: 4px;
+            color: white;
+            font-weight: 600;
+            padding-right: 4px;
+        }
+
+        /* ============================================
+           COMPOSANTS - CONTRÔLES
+           ============================================ */
+        .controls-section {
+            padding: var(--spacing-md);
+            background-color: var(--bg-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-light);
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .control-label {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            accent-color: var(--accent-primary);
+            cursor: pointer;
+        }
+
+        .slider-container {
+            margin-top: var(--spacing-sm);
+        }
+
+        .slider-container.hidden {
+            display: none;
+        }
+
+        .slider-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .buttons-row {
+            display: flex;
+            gap: var(--spacing-sm);
+            padding-top: var(--spacing-sm);
+        }
+
+        .btn {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.625rem 1rem;
+            font-weight: 700;
+            font-size: 1rem;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-success {
+            background-color: var(--color-success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #15803d;
+        }
+
+        .btn-danger {
+            background-color: var(--color-error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #b91c1c;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #005299;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ============================================
+           CONSOLE DE LOG
+           ============================================ */
+        .console-log {
+            background-color: #1a202c;
+            color: #a0aec0;
+            font-family: 'Courier New', Courier, monospace;
+            height: 200px;
+            overflow-y: auto;
+            border-radius: var(--radius-md);
+            padding: 0.75rem;
+            border: 1px solid #2d3748;
+        }
+
+        .console-log p {
+            margin: 0;
+            padding: 2px 0;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .console-log .header {
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .console-log .highlight {
+            color: #fbbf24;
+        }
+
+        /* ============================================
+           QUIZ ET ALERTES
+           ============================================ */
+        .quiz-container {
+            padding: var(--spacing-md);
+            background-color: #dbeafe;
+            border: 1px solid #93c5fd;
+            border-radius: var(--radius-md);
+        }
+
+        .quiz-container.hidden {
+            display: none;
+        }
+
+        .quiz-container h2 {
+            color: #1e40af;
+        }
+
+        .quiz-question {
+            color: var(--text-main);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .quiz-highlight {
+            color: var(--accent-primary);
+            font-weight: 700;
+        }
+
+        .quiz-input-row {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .quiz-input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+        }
+
+        .quiz-input:focus {
+            outline: 2px solid var(--accent-primary);
+            outline-offset: 2px;
+        }
+
+        .explanation-container {
+            padding: var(--spacing-md);
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: var(--radius-md);
+        }
+
+        .explanation-container.hidden {
+            display: none;
+        }
+
+        .explanation-container h3 {
+            color: #991b1b;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .explanation-details {
+            font-size: 0.875rem;
+            color: var(--text-main);
+            padding: 0.75rem;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid var(--border-light);
+            font-family: monospace;
+        }
+
+        .explanation-details ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .explanation-result {
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: var(--color-success);
+            margin-top: var(--spacing-sm);
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .site-footer {
+            padding: var(--spacing-md) 0;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        /* ============================================
+           FEUX D'ARTIFICE
+           ============================================ */
+        .fireworks-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        /* ============================================
+           ACCESSIBILITÉ
+           ============================================ */
+        :focus-visible {
+            outline: 3px solid var(--accent-secondary);
+            outline-offset: 2px;
+        }
+
+        .consigne {
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: -0.5rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        /* ============================================
+           RESPONSIVE MOBILE
+           ============================================ */
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .controls-area {
+                padding: var(--spacing-md);
+            }
+
+            .plane {
+                width: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Zone de simulation -->
+        <div class="simulation-area" id="simulation-area">
+            <!-- Conteneur pour le pivot et le plan -->
+            <div class="plane-container" id="plane-container">
+                <!-- Le pivot -->
+                <div class="pivot" id="pivot"></div>
+                
+                <!-- Le plan inclinable -->
+                <div class="plane" id="plane">
+                    <!-- La piste graduée -->
+                    <div class="track" id="track">
+                        <!-- Le bolide -->
+                        <div class="bolide" id="bolide"></div>
+                    </div>
+                    
+                    <!-- Étiquette de distance -->
+                    <div class="distance-label">10 m</div>
+                </div>
+
+                <!-- La poignée pour glisser -->
+                <div class="handle" id="handle"></div>
+            </div>
+
+            <!-- Affichage de l'angle -->
+            <div class="angle-display">
+                <span>Angle : <span id="angle-display">0,00°</span></span>
+            </div>
+        </div>
+
+        <!-- Zone de contrôles et de données -->
+        <div class="controls-area">
+            <h1>Simulation de physique</h1>
+
+            <p class="consigne">
+                Consigne : ajuste l'angle désiré, choisis si tu veux ou non du frottement, puis lance la simulation.
+            </p>
+
+            <!-- Contrôles -->
+            <div class="controls-section">
+                <h2>Contrôles</h2>
+                
+                <!-- Frottement -->
+                <div class="control-row">
+                    <label for="friction-toggle" class="control-label">Activer le frottement</label>
+                    <input type="checkbox" id="friction-toggle" class="checkbox">
+                </div>
+                
+                <!-- Slider Frottement -->
+                <div class="slider-container hidden" id="friction-slider-container">
+                    <label for="friction-slider" class="slider-label">
+                        Coefficient de frottement (µ) : <span id="friction-value">0,10</span>
+                    </label>
+                    <input type="range" id="friction-slider" min="0" max="100" value="10" class="slider">
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="buttons-row">
+                    <button id="start-button" class="btn btn-success">
+                        Lancer / Réinitialiser
+                    </button>
+                    <button id="stop-button" class="btn btn-danger" disabled>
+                        Arrêter
+                    </button>
+                </div>
+            </div>
+
+            <!-- Console de Log -->
+            <div>
+                <h2>Console (temps, position)</h2>
+                <div class="console-log" id="console-log">
+                    <p>En attente du lancement...</p>
+                </div>
+            </div>
+
+            <!-- Zone de Quiz (cachée par défaut) -->
+            <div class="quiz-container hidden" id="quiz-container">
+                <h2>Défi de calcul</h2>
+                <p class="quiz-question" id="quiz-question">
+                    Le bolide s'est arrêté. Il lui reste <strong class="quiz-highlight" id="distance-restante">X,XX m</strong> à parcourir. Combien de temps (en secondes) mettra-t-il pour atteindre la fin du plan ?
+                </p>
+                <div class="quiz-input-row">
+                    <input type="number" id="quiz-answer" class="quiz-input" placeholder="Votre réponse (ex : 2.45)" step="0.01">
+                    <button id="check-answer-button" class="btn btn-primary">
+                        Vérifier
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zone d'Explication (cachée par défaut) -->
+            <div class="explanation-container hidden" id="explanation-container">
+                <h3>Oups, ce n'est pas tout à fait ça.</h3>
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: var(--spacing-sm);">
+                    Voici la démarche pour trouver la bonne réponse :
+                </p>
+                <div class="explanation-details" id="explanation-details"></div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="site-footer">
+                <p>Ingénierie RÉCIT MST (<a href="mailto:mst@recit.gouv.qc.ca">mst@recit.gouv.qc.ca</a>) | Programmation par une IAG avec <a href="https://drive.google.com/file/d/1dTVZGoRG6YVKinoENRLTWRhY4FVWxdPG/view?usp=sharing" style="text-decoration:underline;" target="_blank">ces instructions de sécurité</a>.</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Canevas pour les feux d'artifice -->
+    <canvas class="fireworks-canvas" id="fireworks-canvas"></canvas>
+
+    <script>
+    (function() {
+        'use strict';
+
+        /**
+         * Échappe les caractères HTML dangereux
+         * @param {string} str - Chaîne à échapper
+         * @returns {string} Chaîne échappée
+         */
+        function escapeHTML(str) {
+            const escapeMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;',
+                '/': '&#x2F;',
+                '`': '&#x60;',
+                '=': '&#x3D;'
+            };
+            return String(str).replace(/[&<>"'`=\/]/g, function(char) {
+                return escapeMap[char];
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Constantes de simulation
+            var g = 9.81; // m/s²
+            var PIVOT_WIDTH = 8;
+            var PLANE_WIDTH_PX = 800;
+            var TRACK_LENGTH_METERS = 10;
+            var PIXELS_PER_METER = PLANE_WIDTH_PX / TRACK_LENGTH_METERS;
+            var BOLIDE_WIDTH_PX = 40;
+            var currentStopDistanceMeters = 0;
+
+            // Éléments DOM
+            var plane = document.getElementById('plane');
+            var handle = document.getElementById('handle');
+            var pivot = document.getElementById('pivot');
+            var angleDisplay = document.getElementById('angle-display');
+            var bolide = document.getElementById('bolide');
+            
+            var frictionToggle = document.getElementById('friction-toggle');
+            var frictionSliderContainer = document.getElementById('friction-slider-container');
+            var frictionSlider = document.getElementById('friction-slider');
+            var frictionValue = document.getElementById('friction-value');
+
+            var startButton = document.getElementById('start-button');
+            var stopButton = document.getElementById('stop-button');
+            var consoleLog = document.getElementById('console-log');
+
+            var quizContainer = document.getElementById('quiz-container');
+            var distanceRestante = document.getElementById('distance-restante');
+            var quizAnswer = document.getElementById('quiz-answer');
+            var checkAnswerButton = document.getElementById('check-answer-button');
+
+            var explanationContainer = document.getElementById('explanation-container');
+            var explanationDetails = document.getElementById('explanation-details');
+
+            var fireworksCanvas = document.getElementById('fireworks-canvas');
+            var fireworksCtx = fireworksCanvas.getContext('2d');
+
+            // État de la simulation
+            var isDragging = false;
+            var isRunning = false;
+            var angleRad = 0;
+            var frictionCoefficient = 0.1;
+            var isFrictionEnabled = false;
+
+            var startTime = 0;
+            var animationFrameId = null;
+            var lastLogTime = -1;
+
+            // Variables de physique pour le quiz
+            var currentAcceleration = 0;
+            var stopVelocity = 0;
+            var stopPosition = 0;
+            var correctAnswer = 0;
+
+            // --- 1. Gestion de l'angle du plan ---
+            
+            function getPivotPosition() {
+                var rect = pivot.getBoundingClientRect();
+                return { x: rect.left + PIVOT_WIDTH, y: rect.top - PIVOT_WIDTH };
+            }
+
+            function setAngle(rad) {
+                // Limiter l'angle entre 0 et 70 degrés
+                angleRad = Math.max(0, Math.min(rad, 1.22));
+
+                var deg = angleRad * (180 / Math.PI);
+
+                plane.style.transform = 'rotate(' + deg + 'deg)';
+                angleDisplay.textContent = deg.toFixed(2).replace('.', ',') + '°';
+
+                // Positionner la poignée manuellement
+                var handleX = PLANE_WIDTH_PX * Math.cos(angleRad);
+                var handleY = PLANE_WIDTH_PX * Math.sin(angleRad);
+
+                handle.style.left = handleX + 'px';
+                handle.style.bottom = (-handleY) + 'px';
+            }
+
+            function updateAngleFromMouse(event) {
+                if (!isDragging || isRunning) return;
+
+                var pivotPos = getPivotPosition();
+                var dx = event.clientX - pivotPos.x;
+                var dy = event.clientY - pivotPos.y;
+                
+                var rad = Math.atan2(dy, dx);
+                
+                setAngle(rad);
+            }
+
+            handle.addEventListener('mousedown', function(e) {
+                if (isRunning) return;
+                isDragging = true;
+                handle.style.cursor = 'grabbing';
+                document.body.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                handle.style.cursor = 'grab';
+                document.body.style.cursor = 'default';
+            });
+
+            document.addEventListener('mousemove', updateAngleFromMouse);
+            
+            // --- 2. Gestion des contrôles (Frottement, Boutons) ---
+
+            frictionToggle.addEventListener('change', function() {
+                isFrictionEnabled = frictionToggle.checked;
+                if (isFrictionEnabled) {
+                    frictionSliderContainer.classList.remove('hidden');
+                } else {
+                    frictionSliderContainer.classList.add('hidden');
+                }
+            });
+
+            frictionSlider.addEventListener('input', function() {
+                frictionCoefficient = parseFloat(frictionSlider.value) / 100;
+                frictionValue.textContent = frictionCoefficient.toFixed(2).replace('.', ',');
+            });
+
+            startButton.addEventListener('click', startSimulation);
+            stopButton.addEventListener('click', stopSimulation);
+            checkAnswerButton.addEventListener('click', checkAnswer);
+
+            // --- 3. Logique de Simulation ---
+
+            function calculateAcceleration() {
+                var gParallel = g * Math.sin(angleRad);
+                
+                if (isFrictionEnabled) {
+                    var gNormal = g * Math.cos(angleRad);
+                    var frictionForce = frictionCoefficient * gNormal;
+                    currentAcceleration = Math.max(0, gParallel - frictionForce);
+                } else {
+                    currentAcceleration = gParallel;
+                }
+                return currentAcceleration;
+            }
+
+            function startSimulation() {
+                // Réinitialiser tout
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+                isRunning = true;
+                startTime = performance.now();
+                lastLogTime = -1;
+                
+                // Réinitialiser l'état
+                bolide.style.transition = 'none';
+                bolide.style.left = '0px';
+                void bolide.offsetWidth;
+                bolide.style.transition = 'left 0.05s linear';
+                
+                // Vider la console (méthode sécurisée)
+                while (consoleLog.firstChild) {
+                    consoleLog.removeChild(consoleLog.firstChild);
+                }
+                
+                // Ajouter l'en-tête du tableau
+                var header = document.createElement('p');
+                header.textContent = 'Temps (s), Position (m)';
+                header.className = 'header';
+                consoleLog.appendChild(header);
+
+                quizContainer.classList.add('hidden');
+                explanationContainer.classList.add('hidden');
+                stopButton.disabled = false;
+                startButton.textContent = 'Réinitialiser';
+                
+                // Calculer l'accélération pour cette session
+                calculateAcceleration();
+
+                // Calculer une distance d'arrêt aléatoire
+                var minPercent = 0.15;
+                var maxPercent = 0.70;
+                var randomPercent = Math.random() * (maxPercent - minPercent) + minPercent;
+                currentStopDistanceMeters = TRACK_LENGTH_METERS * randomPercent;
+                
+                if (currentAcceleration <= 0) {
+                    logToConsole(0, 0, 0, 'Accélération nulle ou négative. Le bolide ne bouge pas.');
+                    isRunning = false;
+                    stopButton.disabled = true;
+                    return;
+                }
+
+                // Démarrer la boucle d'animation
+                animationFrameId = requestAnimationFrame(animateLoop);
+            }
+
+            function stopSimulation() {
+                if (!isRunning) return;
+                
+                isRunning = false;
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+                
+                stopButton.disabled = true;
+                startButton.textContent = 'Lancer / Réinitialiser';
+                
+                // Lancer le quiz
+                showQuiz();
+            }
+
+            function animateLoop(currentTime) {
+                if (!isRunning) return;
+
+                var elapsedTimeMs = currentTime - startTime;
+                var elapsedTimeSeconds = elapsedTimeMs / 1000;
+
+                // Calculs de physique (vitesse initiale = 0)
+                var positionMeters = 0.5 * currentAcceleration * Math.pow(elapsedTimeSeconds, 2);
+                var velocity = currentAcceleration * elapsedTimeSeconds;
+
+                var positionPx = positionMeters * PIXELS_PER_METER;
+
+                // Mettre à jour la position visuelle
+                bolide.style.left = positionPx + 'px';
+
+                // Logger à intervalle régulier
+                if (elapsedTimeSeconds - lastLogTime > 0.1) {
+                    logToConsole(elapsedTimeSeconds, positionMeters, velocity);
+                    lastLogTime = elapsedTimeSeconds;
+                }
+
+                // Condition d'arrêt (distance aléatoire)
+                if (positionMeters >= currentStopDistanceMeters) {
+                    var exactTime = Math.sqrt((2 * currentStopDistanceMeters) / currentAcceleration);
+                    var finalVelocity = currentAcceleration * exactTime;
+                    var finalPositionPx = currentStopDistanceMeters * PIXELS_PER_METER;
+
+                    stopPosition = currentStopDistanceMeters;
+                    stopVelocity = finalVelocity;
+                    
+                    bolide.style.left = finalPositionPx + 'px';
+                    logToConsole(exactTime, currentStopDistanceMeters, finalVelocity, 'Arrêt à ' + currentStopDistanceMeters.toFixed(2) + ' m.');
+                    
+                    stopSimulation();
+
+                // Condition d'arrêt (fin du plan)
+                } else if (positionPx >= (PLANE_WIDTH_PX - BOLIDE_WIDTH_PX / 2)) {
+                    var exactTime2 = Math.sqrt((2 * TRACK_LENGTH_METERS) / currentAcceleration);
+                    var finalVelocity2 = currentAcceleration * exactTime2;
+
+                    bolide.style.left = (PLANE_WIDTH_PX - BOLIDE_WIDTH_PX / 2) + 'px';
+                    logToConsole(exactTime2, TRACK_LENGTH_METERS, finalVelocity2, 'Fin du plan atteinte.');
+                    
+                    stopPosition = TRACK_LENGTH_METERS;
+                    stopVelocity = finalVelocity2;
+
+                    stopSimulation();
+                } else {
+                    animationFrameId = requestAnimationFrame(animateLoop);
+                }
+            }
+            
+            function logToConsole(time, pos, vel, message) {
+                var logEntry = document.createElement('p');
+                if (message) {
+                    logEntry.textContent = '[' + time.toFixed(2) + 's] ' + escapeHTML(message);
+                    logEntry.className = 'highlight';
+                } else {
+                    logEntry.textContent = time.toFixed(2) + ', ' + pos.toFixed(2);
+                }
+                consoleLog.appendChild(logEntry);
+                consoleLog.scrollTop = consoleLog.scrollHeight;
+            }
+
+            // --- 4. Logique du Quiz ---
+
+            function showQuiz() {
+                var remainingDistance = TRACK_LENGTH_METERS - stopPosition;
+                
+                if (remainingDistance <= 0.01) {
+                    quizContainer.classList.add('hidden');
+                    return;
+                }
+
+                distanceRestante.textContent = remainingDistance.toFixed(2).replace('.', ',') + ' m';
+                quizContainer.classList.remove('hidden');
+                explanationContainer.classList.add('hidden');
+                quizAnswer.value = '';
+
+                // Calculer la réponse correcte
+                var a_quad = 0.5 * currentAcceleration;
+                var b_quad = stopVelocity;
+                var c_quad = -remainingDistance;
+
+                var discriminant = Math.pow(b_quad, 2) - 4 * a_quad * c_quad;
+                
+                if (discriminant < 0) {
+                    correctAnswer = 0;
+                } else {
+                    correctAnswer = (-b_quad + Math.sqrt(discriminant)) / (2 * a_quad);
+                }
+            }
+
+            function checkAnswer() {
+                var userAnswer = parseFloat(quizAnswer.value);
+                
+                // Tolérance de 0.05s
+                if (Math.abs(userAnswer - correctAnswer) < 0.05) {
+                    explanationContainer.classList.add('hidden');
+                    quizContainer.classList.add('hidden');
+                    triggerFireworks();
+                } else {
+                    showExplanation();
+                }
+            }
+
+            function showExplanation() {
+                var remainingDistance = TRACK_LENGTH_METERS - stopPosition;
+                
+                // Construction sécurisée du contenu (sans innerHTML)
+                while (explanationDetails.firstChild) {
+                    explanationDetails.removeChild(explanationDetails.firstChild);
+                }
+
+                var p1 = document.createElement('p');
+                p1.textContent = 'On cherche « t » avec la formule : d = v₀t + ½at²';
+                explanationDetails.appendChild(p1);
+
+                var p2 = document.createElement('p');
+                p2.textContent = 'Où :';
+                explanationDetails.appendChild(p2);
+
+                var ul = document.createElement('ul');
+                
+                var li1 = document.createElement('li');
+                var strong1 = document.createElement('strong');
+                strong1.textContent = 'd';
+                li1.appendChild(strong1);
+                li1.appendChild(document.createTextNode(' (distance restante) = ' + remainingDistance.toFixed(3) + ' m'));
+                ul.appendChild(li1);
+
+                var li2 = document.createElement('li');
+                var strong2 = document.createElement('strong');
+                strong2.textContent = 'v₀';
+                li2.appendChild(strong2);
+                li2.appendChild(document.createTextNode(' (vitesse initiale) = ' + stopVelocity.toFixed(3) + ' m/s'));
+                ul.appendChild(li2);
+
+                var li3 = document.createElement('li');
+                var strong3 = document.createElement('strong');
+                strong3.textContent = 'a';
+                li3.appendChild(strong3);
+                li3.appendChild(document.createTextNode(' (accélération) = ' + currentAcceleration.toFixed(3) + ' m/s²'));
+                ul.appendChild(li3);
+
+                explanationDetails.appendChild(ul);
+
+                var p3 = document.createElement('p');
+                p3.textContent = 'On résout l\'équation du second degré :';
+                explanationDetails.appendChild(p3);
+
+                var p4 = document.createElement('p');
+                var strong4 = document.createElement('strong');
+                strong4.textContent = '(0.5 × ' + currentAcceleration.toFixed(3) + ')t² + (' + stopVelocity.toFixed(3) + ')t - ' + remainingDistance.toFixed(3) + ' = 0';
+                p4.appendChild(strong4);
+                explanationDetails.appendChild(p4);
+
+                var p5 = document.createElement('p');
+                p5.textContent = 'La solution (positive) est :';
+                p5.style.marginTop = 'var(--spacing-sm)';
+                explanationDetails.appendChild(p5);
+
+                var p6 = document.createElement('p');
+                p6.className = 'explanation-result';
+                p6.textContent = 't = ' + correctAnswer.toFixed(3) + ' s';
+                explanationDetails.appendChild(p6);
+
+                explanationContainer.classList.remove('hidden');
+            }
+            
+            // --- 5. Feux d'artifice (Bonus) ---
+            
+            var particles = [];
+            
+            function Particle(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 5 + 2;
+                this.speedX = Math.random() * 6 - 3;
+                this.speedY = Math.random() * 6 - 3;
+                this.opacity = 1;
+            }
+            
+            Particle.prototype.update = function() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.opacity -= 0.02;
+                this.size *= 0.98;
+            };
+            
+            Particle.prototype.draw = function() {
+                fireworksCtx.globalAlpha = this.opacity;
+                fireworksCtx.fillStyle = this.color;
+                fireworksCtx.beginPath();
+                fireworksCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                fireworksCtx.fill();
+            };
+            
+            function createParticles(x, y) {
+                var colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF6', '#F6FF33'];
+                for (var i = 0; i < 100; i++) {
+                    var color = colors[Math.floor(Math.random() * colors.length)];
+                    particles.push(new Particle(x, y, color));
+                }
+            }
+            
+            function animateFireworks() {
+                fireworksCtx.globalAlpha = 0.1;
+                fireworksCtx.fillStyle = 'black';
+                fireworksCtx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+                
+                for (var i = particles.length - 1; i >= 0; i--) {
+                    particles[i].draw();
+                    particles[i].update();
+                    
+                    if (particles[i].opacity <= 0 || particles[i].size <= 0.2) {
+                        particles.splice(i, 1);
+                    }
+                }
+                
+                if (particles.length > 0) {
+                    requestAnimationFrame(animateFireworks);
+                } else {
+                    fireworksCanvas.style.opacity = 0;
+                }
+            }
+
+            function triggerFireworks() {
+                fireworksCanvas.width = window.innerWidth;
+                fireworksCanvas.height = window.innerHeight;
+                fireworksCanvas.style.opacity = 1;
+                particles = [];
+                
+                createParticles(Math.random() * fireworksCanvas.width, Math.random() * fireworksCanvas.height * 0.7);
+                setTimeout(function() {
+                    createParticles(Math.random() * fireworksCanvas.width, Math.random() * fireworksCanvas.height * 0.7);
+                }, 300);
+                setTimeout(function() {
+                    createParticles(Math.random() * fireworksCanvas.width, Math.random() * fireworksCanvas.height * 0.7);
+                }, 600);
+                
+                animateFireworks();
+            }
+
+            // Initialisation au chargement
+            frictionSlider.dispatchEvent(new Event('input'));
+            frictionToggle.dispatchEvent(new Event('change'));
+            setAngle(10 * (Math.PI / 180)); // Angle initial de 10 degrés
+        });
+    })();
+    </script>
+</body>
+</html>
